@@ -199,7 +199,7 @@ jobs:
       - name: Checkout aspire
         uses: actions/checkout@v6
         with:
-          repository: dotnet/aspire
+          repository: microsoft/aspire
           ref: release/10.0
           path: aspire
 
