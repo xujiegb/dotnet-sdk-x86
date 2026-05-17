@@ -129,6 +129,9 @@ jobs:
           sed -i 's/return/__SkipCrossArchBuild=0/' runtime/src/coreclr/build-runtime.sh || true
           sed -i '/AppHostRuntimeIdentifier/d' runtime/src/coreclr/tools/aot/crossgen2/crossgen2.csproj || true
 
+          sed -i '/<PublishSingleFile>/d' runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler.csproj || true
+          sed -i '/<PublishSingleFile>/d' runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler_inbuild.csproj || true
+
           if grep -q 'PublishReadyToRun Condition' runtime/src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Runtime.props; then
             sed -i '/PublishReadyToRun Condition/a \ \ \ \ <PublishReadyToRun>false<\/PublishReadyToRun>' runtime/src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Runtime.props
           fi
@@ -175,6 +178,7 @@ jobs:
               /p:OfficialBuildId="$OFFICIALBUILDID" \
               /p:PublishAot=false \
               /p:PublishReadyToRun=false \
+              /p:PublishSingleFile=false \
               /p:UseAppHost=false \
               /p:DisableAppHost=true \
               /p:SelfContained=false \
