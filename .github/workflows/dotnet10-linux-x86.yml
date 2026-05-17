@@ -27,6 +27,11 @@ env:
   TARGET_ARCH: x86
   TARGET_OS: Linux
   TARGET_RID: linux-x86
+  RUNTIME_REF: ${{ startsWith(inputs.runtime_tag, 'v') && inputs.runtime_tag || format('v{0}', inputs.runtime_tag) }}
+  ASPNETCORE_REF: ${{ startsWith(inputs.aspnetcore_tag, 'v') && inputs.aspnetcore_tag || format('v{0}', inputs.aspnetcore_tag) }}
+  SDK_REF: ${{ startsWith(inputs.sdk_tag, 'v') && inputs.sdk_tag || format('v{0}', inputs.sdk_tag) }}
+  ASPIRE_REF: ${{ startsWith(inputs.aspire_tag, 'v') && inputs.aspire_tag || format('v{0}', inputs.aspire_tag) }}
+  INSTALLER_REF: ${{ startsWith(inputs.installer_tag, 'v') && inputs.installer_tag || format('v{0}', inputs.installer_tag) }}
 
 jobs:
   runtime:
@@ -42,7 +47,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: dotnet/runtime
-          ref: ${{ inputs.runtime_tag }}
+          ref: ${{ env.RUNTIME_REF }}
           path: runtime
           fetch-depth: 0
           fetch-tags: true
@@ -116,10 +121,27 @@ jobs:
                 libstdc++6:i386 \
                 zlib1g:i386 \
                 libgcc-s1:i386 \
+                libc6-dev:i386 \
+                libgcc-11-dev:i386 \
+                linux-libc-dev:i386 \
+                zlib1g-dev:i386 \
                 && rm -rf /var/lib/apt/lists/*
 
           ENV ROOTFS_DIR=/crossrootfs/x86
-          RUN mkdir -p ${ROOTFS_DIR}
+
+          RUN mkdir -p ${ROOTFS_DIR}/usr ${ROOTFS_DIR}/lib && \
+              cp -a /usr/include ${ROOTFS_DIR}/usr/ && \
+              mkdir -p ${ROOTFS_DIR}/usr/lib ${ROOTFS_DIR}/lib && \
+              cp -a /usr/lib/i386-linux-gnu ${ROOTFS_DIR}/usr/lib/ && \
+              cp -a /lib/i386-linux-gnu ${ROOTFS_DIR}/lib/ && \
+              mkdir -p ${ROOTFS_DIR}/usr/lib/gcc && \
+              cp -a /usr/lib/gcc/i686-linux-gnu ${ROOTFS_DIR}/usr/lib/gcc/ || true && \
+              cp -a /usr/lib/gcc/x86_64-linux-gnu ${ROOTFS_DIR}/usr/lib/gcc/ || true && \
+              ln -s i386-linux-gnu ${ROOTFS_DIR}/usr/lib/i686-linux-gnu || true && \
+              ln -s i386-linux-gnu ${ROOTFS_DIR}/lib/i686-linux-gnu || true && \
+              ln -s i686-linux-gnu ${ROOTFS_DIR}/usr/lib/gcc/i386-linux-gnu || true && \
+              find ${ROOTFS_DIR} \( -name 'Scrt1.o' -o -name 'crti.o' -o -name 'crtbeginS.o' -o -name 'libc.so' -o -name 'libgcc.a' \) -print
+
           WORKDIR /
           EOF
 
@@ -130,23 +152,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          git -C runtime checkout "${{ inputs.runtime_tag }}"
+          git -C runtime checkout "$RUNTIME_REF"
 
-          # Remove Microsoft internal feeds
           sed -i '/\/dnceng\/internal\//d' runtime/NuGet.config || true
-
-          # Allow cross-arch build if guard exists
           sed -i 's/return/__SkipCrossArchBuild=0/' runtime/src/coreclr/build-runtime.sh || true
-
-          # Avoid AppHostRuntimeIdentifier restriction if present
           sed -i '/AppHostRuntimeIdentifier/d' runtime/src/coreclr/tools/aot/crossgen2/crossgen2.csproj || true
 
-          # Disable ReadyToRun for fragile/non-official linux-x86 path
           if grep -q 'PublishReadyToRun Condition' runtime/src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Runtime.props; then
             sed -i '/PublishReadyToRun Condition/a \ \ \ \ <PublishReadyToRun>false<\/PublishReadyToRun>' runtime/src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Runtime.props
           fi
 
-          # Avoid crossgen-corelib subset if still present
           sed -i '/crossgen-corelib/d' runtime/eng/Subsets.props || true
 
       - name: Build runtime
@@ -202,7 +217,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: microsoft/aspire
-          ref: ${{ inputs.aspire_tag }}
+          ref: ${{ env.ASPIRE_REF }}
           path: aspire
           fetch-depth: 0
           fetch-tags: true
@@ -234,7 +249,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git -C aspire checkout "${{ inputs.aspire_tag }}"
+          git -C aspire checkout "$ASPIRE_REF"
           sed -i '/\/dnceng\/internal\//d' aspire/NuGet.config || true
 
       - name: Build Aspire
@@ -273,7 +288,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: dotnet/sdk
-          ref: ${{ inputs.sdk_tag }}
+          ref: ${{ env.SDK_REF }}
           path: sdk
           fetch-depth: 0
           fetch-tags: true
@@ -305,7 +320,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git -C sdk checkout "${{ inputs.sdk_tag }}"
+          git -C sdk checkout "$SDK_REF"
           sed -i '/\/dnceng\/internal\//d' sdk/NuGet.config || true
 
       - name: Build SDK
@@ -343,7 +358,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: dotnet/aspnetcore
-          ref: ${{ inputs.aspnetcore_tag }}
+          ref: ${{ env.ASPNETCORE_REF }}
           path: aspnetcore
           submodules: recursive
           fetch-depth: 0
@@ -382,7 +397,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git -C aspnetcore checkout "${{ inputs.aspnetcore_tag }}"
+          git -C aspnetcore checkout "$ASPNETCORE_REF"
           git -C aspnetcore submodule update --init --recursive
 
           sed -i '/\/dnceng\/internal\//d' aspnetcore/NuGet.config || true
@@ -391,7 +406,6 @@ jobs:
             --name local-runtime \
             --configfile aspnetcore/NuGet.config || true
 
-          # Add linux-x86 RID where old pipeline injected it.
           sed -i 's/linux-x64;/linux-x64;linux-x86;/' aspnetcore/Directory.Build.props || true
 
           if grep -q 'Microsoft.NETCore.App.Runtime.linux-x64' aspnetcore/eng/Dependencies.props; then
@@ -451,7 +465,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: dotnet/installer
-          ref: ${{ inputs.installer_tag }}
+          ref: ${{ env.INSTALLER_REF }}
           path: installer
           fetch-depth: 0
           fetch-tags: true
@@ -507,7 +521,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git -C installer checkout "${{ inputs.installer_tag }}"
+          git -C installer checkout "$INSTALLER_REF"
 
           dotnet nuget remove source msbuild --configfile installer/NuGet.config || true
           dotnet nuget remove source nuget-build --configfile installer/NuGet.config || true
@@ -526,7 +540,6 @@ jobs:
 
           sed -i '/\/dnceng\/internal\//d' installer/NuGet.config || true
 
-          # Inject linux-x86 into bundled version generation target.
           sed -i 's/linux-s390x/linux-s390x;linux-x86/g' \
             installer/src/redist/targets/GenerateBundledVersions.targets || true
 
