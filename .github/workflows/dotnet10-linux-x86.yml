@@ -202,6 +202,10 @@ jobs:
           file "$HOST_PACK_DIR/apphost"
 
           LOCAL_PACKAGES="$GITHUB_WORKSPACE/runtime/artifacts/local-packages"
+
+          sudo mkdir -p "$LOCAL_PACKAGES"
+          sudo chown -R "$(id -u):$(id -g)" "$LOCAL_PACKAGES"
+          
           PKG_WORK="$LOCAL_PACKAGES/pkg-host-linux-x86"
           rm -rf "$PKG_WORK"
           mkdir -p "$PKG_WORK/runtimes/linux-x86/native" "$LOCAL_PACKAGES"
