@@ -171,6 +171,8 @@ jobs:
           echo "OFFICIALBUILDID=$OFFICIALBUILDID"
 
           docker run --rm \
+            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
+            -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
             dotnet-linux-x86 \
             /runtime/eng/build.sh \
@@ -183,6 +185,8 @@ jobs:
               -subset Clr.Native+Host.Native
 
           docker run --rm \
+            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
+            -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
             dotnet-linux-x86 \
             /runtime/eng/build.sh \
