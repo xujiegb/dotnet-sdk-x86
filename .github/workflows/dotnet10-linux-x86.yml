@@ -146,11 +146,7 @@ jobs:
           echo "OFFICIALBUILDID=$OFFICIALBUILDID"
 
           docker run --rm \
-            -e CC=i686-linux-gnu-gcc \
-            -e CXX=i686-linux-gnu-g++ \
-            -e CFLAGS=--sysroot=/crossrootfs/x86 \
-            -e CXXFLAGS=--sysroot=/crossrootfs/x86 \
-            -e LDFLAGS=--sysroot=/crossrootfs/x86 \
+            -e ROOTFS_DIR=/crossrootfs/x86 \
             -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/lib/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
             -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
@@ -165,11 +161,7 @@ jobs:
               -subset Clr.Native+Host.Native
 
           docker run --rm \
-            -e CC=i686-linux-gnu-gcc \
-            -e CXX=i686-linux-gnu-g++ \
-            -e CFLAGS=--sysroot=/crossrootfs/x86 \
-            -e CXXFLAGS=--sysroot=/crossrootfs/x86 \
-            -e LDFLAGS=--sysroot=/crossrootfs/x86 \
+            -e ROOTFS_DIR=/crossrootfs/x86 \
             -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/lib/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
             -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
@@ -193,6 +185,380 @@ jobs:
         with:
           name: RuntimePackages
           path: runtime/artifacts/packages/Release/Shipping
+          if-no-files-found: error
+
+  aspire:
+    name: Build Aspire
+    runs-on: ubuntu-24.04
+    timeout-minutes: 0
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Checkout aspire
+        uses: actions/checkout@v6
+        with:
+          repository: microsoft/aspire
+          ref: ${{ env.ASPIRE_REF }}
+          path: aspire
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Create helper functions
+        shell: bash
+        run: |
+          cat > common.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          calculate_build_id() {
+            local TAG="${1:-}"
+            local REGEX='-(preview|rc|rtm)\.[0-9]\.([0-9]{5})\.([0-9]{1,2})'
+            if [[ "$TAG" =~ $REGEX ]]; then
+              local MAJOR="${BASH_REMATCH[2]}"
+              local MINOR="${BASH_REMATCH[3]}"
+              local YEAR=$((MAJOR / 1000 + 2000))
+              local MONTH=$(((MAJOR % 1000) / 50))
+              local DAY=$((MAJOR % 50))
+              local DATE=$((YEAR * 10000 + MONTH * 100 + DAY))
+              export OFFICIALBUILDID="${DATE}.${MINOR}"
+            else
+              export OFFICIALBUILDID="$(date +%Y%m%d).99"
+            fi
+          }
+          EOF
+
+      - name: Patch Aspire
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C aspire checkout "$ASPIRE_REF"
+          sed -i '/\/dnceng\/internal\//d' aspire/NuGet.config || true
+
+      - name: Build Aspire
+        shell: bash
+        run: |
+          set -euo pipefail
+          source ./common.sh
+          TAG="$(git -C aspire tag --points-at HEAD | head -n1 || true)"
+          calculate_build_id "$TAG"
+          echo "OFFICIALBUILDID=$OFFICIALBUILDID"
+
+          aspire/build.sh \
+            --restore \
+            --build \
+            --pack \
+            --ci \
+            -c Release \
+            /p:OfficialBuildId="$OFFICIALBUILDID"
+
+      - name: Upload Aspire packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: AspirePackages
+          path: aspire/artifacts/packages/Release/Shipping
+          if-no-files-found: warn
+
+  sdk:
+    name: Build SDK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 0
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Checkout sdk
+        uses: actions/checkout@v6
+        with:
+          repository: dotnet/sdk
+          ref: ${{ env.SDK_REF }}
+          path: sdk
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Create helper functions
+        shell: bash
+        run: |
+          cat > common.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          calculate_build_id() {
+            local TAG="${1:-}"
+            local REGEX='-(preview|rc|rtm)\.[0-9]\.([0-9]{5})\.([0-9]{1,2})'
+            if [[ "$TAG" =~ $REGEX ]]; then
+              local MAJOR="${BASH_REMATCH[2]}"
+              local MINOR="${BASH_REMATCH[3]}"
+              local YEAR=$((MAJOR / 1000 + 2000))
+              local MONTH=$(((MAJOR % 1000) / 50))
+              local DAY=$((MAJOR % 50))
+              local DATE=$((YEAR * 10000 + MONTH * 100 + DAY))
+              export OFFICIALBUILDID="${DATE}.${MINOR}"
+            else
+              export OFFICIALBUILDID="$(date +%Y%m%d).99"
+            fi
+          }
+          EOF
+
+      - name: Checkout SDK tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C sdk checkout "$SDK_REF"
+          sed -i '/\/dnceng\/internal\//d' sdk/NuGet.config || true
+
+      - name: Build SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          source ./common.sh
+          TAG="$(git -C sdk tag --points-at HEAD | head -n1 || true)"
+          calculate_build_id "$TAG"
+          echo "OFFICIALBUILDID=$OFFICIALBUILDID"
+
+          sdk/build.sh \
+            -c Release \
+            -pack \
+            -ci \
+            /p:OfficialBuildId="$OFFICIALBUILDID"
+
+      - name: Upload SDK packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: SdkPackages
+          path: sdk/artifacts/packages/Release/NonShipping
+          if-no-files-found: warn
+
+  aspnetcore:
+    name: Build ASP.NET Core linux-x86
+    runs-on: ubuntu-24.04
+    timeout-minutes: 0
+    needs: runtime
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Checkout aspnetcore
+        uses: actions/checkout@v6
+        with:
+          repository: dotnet/aspnetcore
+          ref: ${{ env.ASPNETCORE_REF }}
+          path: aspnetcore
+          submodules: recursive
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download runtime packages
+        uses: actions/download-artifact@v6
+        with:
+          name: RuntimePackages
+          path: runtime/artifacts/packages/Release/Shipping
+
+      - name: Create helper functions
+        shell: bash
+        run: |
+          cat > common.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          calculate_build_id() {
+            local TAG="${1:-}"
+            local REGEX='-(preview|rc|rtm)\.[0-9]\.([0-9]{5})\.([0-9]{1,2})'
+            if [[ "$TAG" =~ $REGEX ]]; then
+              local MAJOR="${BASH_REMATCH[2]}"
+              local MINOR="${BASH_REMATCH[3]}"
+              local YEAR=$((MAJOR / 1000 + 2000))
+              local MONTH=$(((MAJOR % 1000) / 50))
+              local DAY=$((MAJOR % 50))
+              local DATE=$((YEAR * 10000 + MONTH * 100 + DAY))
+              export OFFICIALBUILDID="${DATE}.${MINOR}"
+            else
+              export OFFICIALBUILDID="$(date +%Y%m%d).99"
+            fi
+          }
+          EOF
+
+      - name: Patch ASP.NET Core
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C aspnetcore checkout "$ASPNETCORE_REF"
+          git -C aspnetcore submodule update --init --recursive
+
+          sed -i '/\/dnceng\/internal\//d' aspnetcore/NuGet.config || true
+
+          dotnet nuget add source "$GITHUB_WORKSPACE/runtime/artifacts/packages/Release/Shipping" \
+            --name local-runtime \
+            --configfile aspnetcore/NuGet.config || true
+
+          sed -i 's/linux-x64;/linux-x64;linux-x86;/' aspnetcore/Directory.Build.props || true
+
+          if grep -q 'Microsoft.NETCore.App.Runtime.linux-x64' aspnetcore/eng/Dependencies.props; then
+            sed -i '/<LatestPackageReference Include="Microsoft.NETCore.App.Runtime.linux-x64" \/>/a \ \ \ \ <LatestPackageReference Include="Microsoft.NETCore.App.Runtime.linux-x86" \/>' aspnetcore/eng/Dependencies.props
+          fi
+
+      - name: Build ASP.NET Core
+        shell: bash
+        run: |
+          set -euo pipefail
+          source ./common.sh
+
+          TAG="$(git -C aspnetcore tag --points-at HEAD | head -n1 || true)"
+          calculate_build_id "$TAG"
+          echo "OFFICIALBUILDID=$OFFICIALBUILDID"
+
+          mkdir -p aspnetcore/artifacts/obj/Microsoft.AspNetCore.App.Runtime
+
+          cp runtime/artifacts/packages/Release/Shipping/dotnet-runtime-*-linux-x86.tar.gz \
+            aspnetcore/artifacts/obj/Microsoft.AspNetCore.App.Runtime/
+
+          aspnetcore/eng/build.sh \
+            -c Release \
+            -ci \
+            -arch x86 \
+            -pack \
+            /p:CrossgenOutput=false \
+            /p:OfficialBuildId="$OFFICIALBUILDID"
+
+      - name: Upload ASP.NET Core packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: AspNetCorePackages
+          path: aspnetcore/artifacts/packages/Release/Shipping
+          if-no-files-found: error
+
+      - name: Upload ASP.NET Core installers
+        uses: actions/upload-artifact@v6
+        with:
+          name: AspNetCoreInstallers
+          path: aspnetcore/artifacts/installers/Release
+          if-no-files-found: warn
+
+  installer:
+    name: Build installer linux-x86
+    runs-on: ubuntu-24.04
+    timeout-minutes: 0
+    needs:
+      - runtime
+      - aspnetcore
+      - aspire
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Checkout installer
+        uses: actions/checkout@v6
+        with:
+          repository: dotnet/installer
+          ref: ${{ env.INSTALLER_REF }}
+          path: installer
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download runtime packages
+        uses: actions/download-artifact@v6
+        with:
+          name: RuntimePackages
+          path: runtime/artifacts/packages/Release/Shipping
+
+      - name: Download ASP.NET Core packages
+        uses: actions/download-artifact@v6
+        with:
+          name: AspNetCorePackages
+          path: aspnetcore/artifacts/packages/Release/Shipping
+
+      - name: Download ASP.NET Core installers
+        uses: actions/download-artifact@v6
+        with:
+          name: AspNetCoreInstallers
+          path: aspnetcore/artifacts/installers/Release
+
+      - name: Download Aspire packages
+        uses: actions/download-artifact@v6
+        with:
+          name: AspirePackages
+          path: aspire/artifacts/packages/Release/Shipping
+
+      - name: Create helper functions
+        shell: bash
+        run: |
+          cat > common.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          calculate_build_id() {
+            local TAG="${1:-}"
+            local REGEX='-(preview|rc|rtm)\.[0-9]\.([0-9]{5})\.([0-9]{1,2})'
+            if [[ "$TAG" =~ $REGEX ]]; then
+              local MAJOR="${BASH_REMATCH[2]}"
+              local MINOR="${BASH_REMATCH[3]}"
+              local YEAR=$((MAJOR / 1000 + 2000))
+              local MONTH=$(((MAJOR % 1000) / 50))
+              local DAY=$((MAJOR % 50))
+              local DATE=$((YEAR * 10000 + MONTH * 100 + DAY))
+              export OFFICIALBUILDID="${DATE}.${MINOR}"
+            else
+              export OFFICIALBUILDID="$(date +%Y%m%d).99"
+            fi
+          }
+          EOF
+
+      - name: Patch installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C installer checkout "$INSTALLER_REF"
+
+          dotnet nuget remove source msbuild --configfile installer/NuGet.config || true
+          dotnet nuget remove source nuget-build --configfile installer/NuGet.config || true
+
+          dotnet nuget add source "$GITHUB_WORKSPACE/runtime/artifacts/packages/Release/Shipping" \
+            --name runtime \
+            --configfile installer/NuGet.config || true
+
+          dotnet nuget add source "$GITHUB_WORKSPACE/aspnetcore/artifacts/packages/Release/Shipping" \
+            --name aspnetcore \
+            --configfile installer/NuGet.config || true
+
+          dotnet nuget add source "$GITHUB_WORKSPACE/aspire/artifacts/packages/Release/Shipping" \
+            --name aspire \
+            --configfile installer/NuGet.config || true
+
+          sed -i '/\/dnceng\/internal\//d' installer/NuGet.config || true
+
+          sed -i 's/linux-s390x/linux-s390x;linux-x86/g' \
+            installer/src/redist/targets/GenerateBundledVersions.targets || true
+
+      - name: Build installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          source ./common.sh
+
+          TAG="$(git -C installer tag --points-at HEAD | head -n1 || true)"
+          calculate_build_id "$TAG"
+          echo "OFFICIALBUILDID=$OFFICIALBUILDID"
+
+          mkdir -p installer/artifacts/obj/redist/Release/downloads/
+
+          cp runtime/artifacts/packages/Release/Shipping/dotnet-runtime-*-linux-x86.tar.gz \
+            installer/artifacts/obj/redist/Release/downloads/
+
+          cp aspnetcore/artifacts/installers/Release/aspnetcore-runtime-* \
+            installer/artifacts/obj/redist/Release/downloads/ || true
+
+          installer/build.sh \
+            -c Release \
+            -ci \
+            -pack \
+            --architecture x86 \
+            --runtime-id linux-x86 \
+            /p:DISABLE_CROSSGEN=True \
+            /p:OfficialBuildId="$OFFICIALBUILDID" \
+            /p:IncludeAspNetCoreRuntime=True \
+            /p:HostRid=linux-x64
+
+      - name: Upload installer packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: InstallerPackages
+          path: installer/artifacts/packages/Release/Shipping
           if-no-files-found: error
 
   aspire:
