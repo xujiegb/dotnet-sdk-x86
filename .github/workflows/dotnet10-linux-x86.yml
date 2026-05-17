@@ -153,23 +153,36 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/runtime/artifacts" || true
           sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/runtime/.dotnet" || true
 
-          SDK_BUNDLED_PROPS="$(find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" \
-            -name 'Microsoft.NETCoreSdk.BundledVersions.props' \
-            | head -n1)"
+          BOOTSTRAP_DOTNET="$GITHUB_WORKSPACE/runtime/.dotnet/dotnet"
+
+          if [[ ! -x "$BOOTSTRAP_DOTNET" ]]; then
+            echo "Cannot find bootstrap dotnet: $BOOTSTRAP_DOTNET"
+            find "$GITHUB_WORKSPACE/runtime/.dotnet" -maxdepth 3 -type f -name dotnet -print || true
+            exit 1
+          fi
+
+          BOOTSTRAP_SDK_VERSION="$("$BOOTSTRAP_DOTNET" --version)"
+          echo "BOOTSTRAP_SDK_VERSION=$BOOTSTRAP_SDK_VERSION"
+
+          SDK_BUNDLED_PROPS="$GITHUB_WORKSPACE/runtime/.dotnet/sdk/$BOOTSTRAP_SDK_VERSION/Microsoft.NETCoreSdk.BundledVersions.props"
 
           echo "Patching SDK bundled props: $SDK_BUNDLED_PROPS"
 
           if [[ -z "$SDK_BUNDLED_PROPS" || ! -f "$SDK_BUNDLED_PROPS" ]]; then
-            echo "Cannot find Microsoft.NETCoreSdk.BundledVersions.props"
+            echo "Cannot find Microsoft.NETCoreSdk.BundledVersions.props for bootstrap SDK $BOOTSTRAP_SDK_VERSION"
             find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" -type f -name 'Microsoft.NETCoreSdk.BundledVersions.props' -print || true
             exit 1
           fi
 
-          HOST_PACK_VERSION="${RUNTIME_REF#v}"
-          HOST_PACK_VERSION="${HOST_PACK_VERSION%%-*}"
+          HOST_PACK_VERSION="$(grep -oPm1 '(?<=<MicrosoftNETCoreAppHostPackageVersion>)[^<]+' "$SDK_BUNDLED_PROPS" || true)"
 
           if [[ -z "$HOST_PACK_VERSION" || "$HOST_PACK_VERSION" == *PackageVersion* ]]; then
-            echo "Cannot detect HOST_PACK_VERSION from RUNTIME_REF=$RUNTIME_REF"
+            HOST_PACK_VERSION="$(grep -oPm1 '(?<=<MicrosoftNETCoreAppRuntimePackageVersion>)[^<]+' "$SDK_BUNDLED_PROPS" || true)"
+          fi
+
+          if [[ -z "$HOST_PACK_VERSION" || "$HOST_PACK_VERSION" == *PackageVersion* ]]; then
+            echo "Cannot detect HOST_PACK_VERSION from $SDK_BUNDLED_PROPS"
+            grep -n "MicrosoftNETCoreApp.*PackageVersion" "$SDK_BUNDLED_PROPS" || true
             exit 1
           fi
 
