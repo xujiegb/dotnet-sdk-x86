@@ -181,10 +181,22 @@ jobs:
             exit 1
           fi
 
-          HOST_PACK_VERSION="$(grep -oPm1 '(?<=<MicrosoftNETCoreAppRuntimePackageVersion>)[^<]+' "$SDK_BUNDLED_PROPS" || true)"
-          if [[ -z "$HOST_PACK_VERSION" ]]; then
-            HOST_PACK_VERSION="${RUNTIME_REF#v}"
-            HOST_PACK_VERSION="${HOST_PACK_VERSION%%-*}"
+          HOST_PACK_VERSIONS="$(
+            {
+              grep -RhoP '(?<=<MicrosoftNETCoreAppHostPackageVersion>)[^<]+' "$GITHUB_WORKSPACE/runtime" || true
+              grep -RhoP '(?<=<MicrosoftNETCoreAppRuntimePackageVersion>)[^<]+' "$GITHUB_WORKSPACE/runtime" || true
+              grep -RhoP '(?<=<BundledNETCoreAppPackageVersion>)[^<]+' "$GITHUB_WORKSPACE/runtime" || true
+              grep -RhoP 'Microsoft\.NETCore\.App\.Host\.linux-x86[^0-9]*\K[0-9]+\.[0-9]+\.[0-9][^"< ]*' "$GITHUB_WORKSPACE/runtime" || true
+              echo "${RUNTIME_REF#v}"
+            } | sed 's/-.*//' | sort -u
+          )"
+
+          echo "HOST_PACK_VERSIONS:"
+          echo "$HOST_PACK_VERSIONS"
+
+          if [[ -z "$HOST_PACK_VERSIONS" ]]; then
+            echo "No host pack versions detected."
+            exit 1
           fi
 
           echo "HOST_PACK_VERSION=$HOST_PACK_VERSION"
