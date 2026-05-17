@@ -201,6 +201,26 @@ jobs:
           ls -l "$HOST_PACK_DIR"
           file "$HOST_PACK_DIR/apphost"
 
+          SDK_BUNDLED_PROPS="$(find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" \
+            -path '*/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NETCoreSdk.BundledVersions.props' \
+            | head -n1)"
+
+          echo "Patching SDK bundled props: $SDK_BUNDLED_PROPS"
+
+          if [[ -z "$SDK_BUNDLED_PROPS" || ! -f "$SDK_BUNDLED_PROPS" ]]; then
+            echo "Cannot find Microsoft.NETCoreSdk.BundledVersions.props"
+            find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" -type f -name 'Microsoft.NETCoreSdk.BundledVersions.props' -print || true
+            exit 1
+          fi
+
+          sed -i 's/linux-x64;/linux-x64;linux-x86;/g' "$SDK_BUNDLED_PROPS"
+          sed -i 's/linux-musl-x64;/linux-musl-x64;linux-x86;/g' "$SDK_BUNDLED_PROPS"
+
+          grep -n "linux-x86" "$SDK_BUNDLED_PROPS" || {
+            echo "Failed to inject linux-x86 into SDK KnownAppHostPack list"
+            exit 1
+          }
+
           docker run --rm \
             -e ROOTFS_DIR=/crossrootfs/x86 \
             -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/lib/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
