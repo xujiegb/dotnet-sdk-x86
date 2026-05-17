@@ -169,8 +169,11 @@ jobs:
           HOST_PACK_VERSION="${RUNTIME_REF#v}"
           HOST_PACK_VERSION="${HOST_PACK_VERSION%%-*}"
 
-          HOST_PACK_DIR="$GITHUB_WORKSPACE/runtime/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86/${HOST_PACK_VERSION}/runtimes/linux-x86/native"
-          mkdir -p "$HOST_PACK_DIR"
+          HOST_PACK_ROOT="$GITHUB_WORKSPACE/runtime/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86"
+          HOST_PACK_DIR="$HOST_PACK_ROOT/${HOST_PACK_VERSION}/runtimes/linux-x86/native"
+
+          sudo mkdir -p "$HOST_PACK_DIR"
+          sudo chown -R "$USER:$USER" "$HOST_PACK_ROOT"
 
           APPHOST_SOURCE=""
 
