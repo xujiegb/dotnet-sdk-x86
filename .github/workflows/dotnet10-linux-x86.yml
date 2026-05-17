@@ -86,7 +86,7 @@ jobs:
           mkdir -p dotnet-linux-x86
 
           cat > dotnet-linux-x86/Dockerfile <<'EOF'
-          FROM debian:11
+          FROM debian:12
 
           ENV DEBIAN_FRONTEND=noninteractive
           ENV ROOTFS_DIR=/crossrootfs/x86
