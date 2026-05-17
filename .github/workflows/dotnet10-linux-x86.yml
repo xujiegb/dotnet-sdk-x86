@@ -181,7 +181,7 @@ jobs:
             exit 1
           fi
 
-          HOST_PACK_VERSION="$(grep -oPm1 '(?<=<NETCoreSdkRuntimePackVersion>)[^<]+' "$SDK_BUNDLED_PROPS" || true)"
+          HOST_PACK_VERSION="$(grep -oPm1 '(?<=<MicrosoftNETCoreAppRuntimePackageVersion>)[^<]+' "$SDK_BUNDLED_PROPS" || true)"
           if [[ -z "$HOST_PACK_VERSION" ]]; then
             HOST_PACK_VERSION="${RUNTIME_REF#v}"
             HOST_PACK_VERSION="${HOST_PACK_VERSION%%-*}"
