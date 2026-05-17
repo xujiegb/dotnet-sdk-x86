@@ -174,15 +174,20 @@ jobs:
             exit 1
           fi
 
-          HOST_PACK_VERSION="$(grep -oPm1 '(?<=<MicrosoftNETCoreAppHostPackageVersion>)[^<]+' "$SDK_BUNDLED_PROPS" || true)"
+          HOST_PACK_VERSION="$(grep -oPm1 'AppHostPackVersion="\K[^"]+' "$SDK_BUNDLED_PROPS" || true)"
 
-          if [[ -z "$HOST_PACK_VERSION" || "$HOST_PACK_VERSION" == *PackageVersion* ]]; then
-            HOST_PACK_VERSION="$(grep -oPm1 '(?<=<MicrosoftNETCoreAppRuntimePackageVersion>)[^<]+' "$SDK_BUNDLED_PROPS" || true)"
+          if [[ -z "$HOST_PACK_VERSION" ]]; then
+            HOST_PACK_VERSION="$(grep -oPm1 'RuntimePackVersion="\K[^"]+' "$SDK_BUNDLED_PROPS" || true)"
           fi
 
-          if [[ -z "$HOST_PACK_VERSION" || "$HOST_PACK_VERSION" == *PackageVersion* ]]; then
+          if [[ -z "$HOST_PACK_VERSION" ]]; then
+            HOST_PACK_VERSION="$(grep -oPm1 'TargetingPackVersion="\K[^"]+' "$SDK_BUNDLED_PROPS" || true)"
+          fi
+
+          if [[ -z "$HOST_PACK_VERSION" ]]; then
             echo "Cannot detect HOST_PACK_VERSION from $SDK_BUNDLED_PROPS"
-            grep -n "MicrosoftNETCoreApp.*PackageVersion" "$SDK_BUNDLED_PROPS" || true
+            echo "Relevant lines:"
+            grep -nE 'KnownAppHostPack|AppHostPackVersion|RuntimePackVersion|TargetingPackVersion|Microsoft\.NETCore\.App' "$SDK_BUNDLED_PROPS" || true
             exit 1
           fi
 
