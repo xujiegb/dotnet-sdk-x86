@@ -86,7 +86,7 @@ jobs:
           mkdir -p dotnet-linux-x86
 
           cat > dotnet-linux-x86/Dockerfile <<'EOF'
-          FROM debian:12
+          FROM debian:11
 
           ENV DEBIAN_FRONTEND=noninteractive
           ENV ROOTFS_DIR=/crossrootfs/x86
@@ -131,12 +131,6 @@ jobs:
                 liblttng-ust-dev && \
               chroot ${ROOTFS_DIR} apt-get clean && \
               rm -rf ${ROOTFS_DIR}/var/lib/apt/lists/* && \
-              rm -f ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/libm.a || true && \
-              rm -f ${ROOTFS_DIR}/lib/i386-linux-gnu/libm.a || true && \
-              rm -f ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/libpthread.a || true && \
-              rm -f ${ROOTFS_DIR}/lib/i386-linux-gnu/libpthread.a || true && \
-              rm -f ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/libc.a || true && \
-              rm -f ${ROOTFS_DIR}/lib/i386-linux-gnu/libc.a || true && \
               ln -s i386-linux-gnu ${ROOTFS_DIR}/usr/lib/i686-linux-gnu || true && \
               ln -s i386-linux-gnu ${ROOTFS_DIR}/lib/i686-linux-gnu || true && \
               find ${ROOTFS_DIR} \( -name 'ld-linux.so.2' -o -name 'Scrt1.o' -o -name 'crti.o' -o -name 'crtbeginS.o' -o -name 'libc.so' -o -name 'libgcc.a' -o -name 'libstdc++.so*' -o -name 'libgssapi_krb5.so*' -o -name 'libssl.so*' -o -name 'libcrypto.so*' -o -name 'libicu*.so*' \) -print
