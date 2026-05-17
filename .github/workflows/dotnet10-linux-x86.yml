@@ -79,7 +79,7 @@ jobs:
           }
           EOF
           chmod +x common.sh
-
+          
       - name: Create linux-x86 crossroot Dockerfile
         shell: bash
         run: |
@@ -93,58 +93,22 @@ jobs:
 
           RUN apt-get update && \
               apt-get install -y --no-install-recommends \
-                bash \
-                ca-certificates \
-                clang \
-                cmake \
-                curl \
-                debootstrap \
-                file \
-                g++ \
-                gcc \
-                git \
-                jq \
-                libicu-dev \
-                libkrb5-dev \
-                liblttng-ust-dev \
-                libssl-dev \
-                lldb \
-                llvm \
-                make \
-                ninja-build \
-                pkg-config \
-                python3 \
-                python3-pip \
-                python-is-python3 \
-                zlib1g-dev \
+                bash ca-certificates clang cmake curl debootstrap file \
+                g++ gcc gcc-i686-linux-gnu g++-i686-linux-gnu \
+                git jq libicu-dev libkrb5-dev liblttng-ust-dev libssl-dev \
+                lldb llvm make ninja-build pkg-config \
+                python3 python3-pip python-is-python3 zlib1g-dev \
                 && rm -rf /var/lib/apt/lists/*
 
           RUN debootstrap --arch=i386 bullseye ${ROOTFS_DIR} http://deb.debian.org/debian && \
               chroot ${ROOTFS_DIR} apt-get update && \
               chroot ${ROOTFS_DIR} apt-get install -y --no-install-recommends \
-                libc6-dev \
-                libstdc++-10-dev \
-                linux-libc-dev \
-                zlib1g-dev \
-                libkrb5-dev \
-                libssl-dev \
-                libicu-dev \
-                liblttng-ust-dev \
-                liburcu-dev \
-                pkg-config && \
+                libc6-dev libstdc++-10-dev linux-libc-dev zlib1g-dev \
+                libkrb5-dev libssl-dev libicu-dev liblttng-ust-dev liburcu-dev pkg-config && \
               chroot ${ROOTFS_DIR} apt-get clean && \
               rm -rf ${ROOTFS_DIR}/var/lib/apt/lists/* && \
-              mkdir -p /usr/lib/i386-linux-gnu/pkgconfig /usr/include /usr/lib/i386-linux-gnu && \
-              cp -a ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/pkgconfig/lttng-ust*.pc /usr/lib/i386-linux-gnu/pkgconfig/ || true && \
-              cp -a ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/pkgconfig/urcu*.pc /usr/lib/i386-linux-gnu/pkgconfig/ || true && \
-              ln -s /usr/lib/i386-linux-gnu/pkgconfig /usr/lib/pkgconfig || true && \
-              cp -a ${ROOTFS_DIR}/usr/include/lttng /usr/include/ || true && \
-              cp -a ${ROOTFS_DIR}/usr/include/urcu* /usr/include/ || true && \
-              cp -a ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/liblttng-ust* /usr/lib/i386-linux-gnu/ || true && \
-              cp -a ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/liburcu* /usr/lib/i386-linux-gnu/ || true && \
               ln -s i386-linux-gnu ${ROOTFS_DIR}/usr/lib/i686-linux-gnu || true && \
-              ln -s i386-linux-gnu ${ROOTFS_DIR}/lib/i686-linux-gnu || true && \
-              find ${ROOTFS_DIR} \( -name 'ld-linux.so.2' -o -name 'Scrt1.o' -o -name 'crti.o' -o -name 'crtbeginS.o' -o -name 'libc.so' -o -name 'libgcc.a' -o -name 'libstdc++.so*' -o -name 'libgssapi_krb5.so*' -o -name 'libssl.so*' -o -name 'libcrypto.so*' -o -name 'libicu*.so*' -o -name 'liblttng-ust*' -o -name 'liburcu*' \) -print
+              ln -s i386-linux-gnu ${ROOTFS_DIR}/lib/i686-linux-gnu || true
 
           WORKDIR /
           EOF
@@ -179,12 +143,13 @@ jobs:
           echo "OFFICIALBUILDID=$OFFICIALBUILDID"
 
           docker run --rm \
-            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig:/usr/lib/pkgconfig \
+            -e CC=i686-linux-gnu-gcc \
+            -e CXX=i686-linux-gnu-g++ \
+            -e CFLAGS=--sysroot=/crossrootfs/x86 \
+            -e CXXFLAGS=--sysroot=/crossrootfs/x86 \
+            -e LDFLAGS=--sysroot=/crossrootfs/x86 \
+            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
             -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
-            -e CMAKE_INCLUDE_PATH=/crossrootfs/x86/usr/include:/usr/include \
-            -e CMAKE_LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu:/crossrootfs/x86/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu \
-            -e CPATH=/crossrootfs/x86/usr/include:/usr/include \
-            -e LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu:/crossrootfs/x86/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
             dotnet-linux-x86 \
             /runtime/eng/build.sh \
@@ -197,12 +162,13 @@ jobs:
               -subset Clr.Native+Host.Native
 
           docker run --rm \
-            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig:/usr/lib/pkgconfig \
+            -e CC=i686-linux-gnu-gcc \
+            -e CXX=i686-linux-gnu-g++ \
+            -e CFLAGS=--sysroot=/crossrootfs/x86 \
+            -e CXXFLAGS=--sysroot=/crossrootfs/x86 \
+            -e LDFLAGS=--sysroot=/crossrootfs/x86 \
+            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
             -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
-            -e CMAKE_INCLUDE_PATH=/crossrootfs/x86/usr/include:/usr/include \
-            -e CMAKE_LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu:/crossrootfs/x86/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu \
-            -e CPATH=/crossrootfs/x86/usr/include:/usr/include \
-            -e LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu:/crossrootfs/x86/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
             dotnet-linux-x86 \
             /runtime/eng/build.sh \
@@ -212,8 +178,6 @@ jobs:
               -os Linux \
               -arch x86 \
               /p:OfficialBuildId="$OFFICIALBUILDID" \
-              -cmakeargs "-DCMAKE_INCLUDE_PATH=/crossrootfs/x86/usr/include;/usr/include" \
-              -cmakeargs "-DCMAKE_LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu;/crossrootfs/x86/lib/i386-linux-gnu;/usr/lib/i386-linux-gnu" \
               /p:AppHostSourcePath=/runtime/artifacts/obj/linux-x86.Release/apphost/standalone/apphost
 
       - name: Upload runtime packages
