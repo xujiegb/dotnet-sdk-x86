@@ -58,20 +58,16 @@ jobs:
           cat > common.sh <<'EOF'
           #!/usr/bin/env bash
           set -euo pipefail
-
           calculate_build_id() {
             local TAG="${1:-}"
             local REGEX='-(preview|rc|rtm)\.[0-9]\.([0-9]{5})\.([0-9]{1,2})'
-
             if [[ "$TAG" =~ $REGEX ]]; then
               local MAJOR="${BASH_REMATCH[2]}"
               local MINOR="${BASH_REMATCH[3]}"
-
               local YEAR=$((MAJOR / 1000 + 2000))
               local MONTH=$(((MAJOR % 1000) / 50))
               local DAY=$((MAJOR % 50))
               local DATE=$((YEAR * 10000 + MONTH * 100 + DAY))
-
               export OFFICIALBUILDID="${DATE}.${MINOR}"
             else
               export OFFICIALBUILDID="$(date +%Y%m%d).99"
@@ -84,13 +80,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p dotnet-linux-x86
-
           cat > dotnet-linux-x86/Dockerfile <<'EOF'
           FROM debian:12
-
           ENV DEBIAN_FRONTEND=noninteractive
           ENV ROOTFS_DIR=/crossrootfs/x86
-
           RUN dpkg --add-architecture i386 && \
               apt-get update && \
               apt-get install -y --no-install-recommends \
@@ -102,7 +95,6 @@ jobs:
                 libc6-dev:i386 libstdc++-12-dev:i386 linux-libc-dev:i386 zlib1g-dev:i386 \
                 libkrb5-dev:i386 libssl-dev:i386 libicu-dev:i386 liblttng-ust-dev:i386 liburcu-dev:i386 \
                 && rm -rf /var/lib/apt/lists/*
-
           RUN mkdir -p ${ROOTFS_DIR}/usr ${ROOTFS_DIR}/lib ${ROOTFS_DIR}/usr/lib ${ROOTFS_DIR}/usr/lib/gcc && \
               cp -a /usr/include ${ROOTFS_DIR}/usr/ && \
               cp -a /usr/lib/i386-linux-gnu ${ROOTFS_DIR}/usr/lib/ && \
@@ -112,33 +104,25 @@ jobs:
               ln -s i386-linux-gnu ${ROOTFS_DIR}/usr/lib/i686-linux-gnu || true && \
               ln -s i386-linux-gnu ${ROOTFS_DIR}/lib/i686-linux-gnu || true && \
               find ${ROOTFS_DIR} \( -name 'lttng-ust.pc' -o -name 'liblttng-ust.so*' -o -path '*/lttng/tracepoint.h' \) -print
-
           WORKDIR /
           EOF
-
           docker build -t dotnet-linux-x86 -f dotnet-linux-x86/Dockerfile .
 
       - name: Patch runtime
         shell: bash
         run: |
           set -euo pipefail
-
           git -C runtime checkout "$RUNTIME_REF"
-
           sed -i '/\/dnceng\/internal\//d' runtime/NuGet.config || true
           sed -i 's/return/__SkipCrossArchBuild=0/' runtime/src/coreclr/build-runtime.sh || true
           sed -i '/AppHostRuntimeIdentifier/d' runtime/src/coreclr/tools/aot/crossgen2/crossgen2.csproj || true
-
           sed -i '/<PublishSingleFile>/d' runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler.csproj || true
           sed -i '/<PublishSingleFile>/d' runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler_inbuild.csproj || true
-
           sed -i '/<PublishTrimmed>/d' runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler.csproj || true
           sed -i '/<PublishTrimmed>/d' runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler_inbuild.csproj || true
-
           if grep -q 'PublishReadyToRun Condition' runtime/src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Runtime.props; then
             sed -i '/PublishReadyToRun Condition/a \ \ \ \ <PublishReadyToRun>false<\/PublishReadyToRun>' runtime/src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Runtime.props
           fi
-
           sed -i '/crossgen-corelib/d' runtime/eng/Subsets.props || true
 
       - name: Build runtime
@@ -146,7 +130,6 @@ jobs:
         run: |
           set -euo pipefail
           source ./common.sh
-
           TAG="$(git -C runtime tag --points-at HEAD | head -n1 || true)"
           calculate_build_id "$TAG"
           echo "OFFICIALBUILDID=$OFFICIALBUILDID"
@@ -181,31 +164,21 @@ jobs:
             exit 1
           fi
 
-          HOST_PACK_VERSION="$(grep -oPm1 '(?<=<MicrosoftNETCoreAppRuntimePackageVersion>)[^<]+' "$SDK_BUNDLED_PROPS" || true)"
-
-          if [[ -z "$HOST_PACK_VERSION" || "$HOST_PACK_VERSION" == *PackageVersion* ]]; then
-            HOST_PACK_VERSION="$(find "$GITHUB_WORKSPACE/runtime/artifacts/packages/Release/Shipping" \
-              -name 'Microsoft.NETCore.App.Runtime.linux-x86.*.nupkg' \
-              -printf '%f\n' 2>/dev/null \
-              | sed -E 's/^Microsoft\.NETCore\.App\.Runtime\.linux-x86\.//' \
-              | sed -E 's/\.nupkg$//' \
-              | sort -V \
-              | tail -n1 || true)"
-          fi
-
-          if [[ -z "$HOST_PACK_VERSION" || "$HOST_PACK_VERSION" == *PackageVersion* ]]; then
-            HOST_PACK_VERSION="$(find "$GITHUB_WORKSPACE/runtime/artifacts/packages/Release/Shipping" \
-              -name 'Microsoft.NETCore.App.Host.linux-x86.*.nupkg' \
-              -printf '%f\n' 2>/dev/null \
-              | sed -E 's/^Microsoft\.NETCore\.App\.Host\.linux-x86\.//' \
-              | sed -E 's/\.nupkg$//' \
-              | sort -V \
-              | tail -n1 || true)"
-          fi
+          HOST_PACK_VERSION="$(find "$GITHUB_WORKSPACE/runtime/artifacts/packages/Release/Shipping" \
+            -name 'Microsoft.NETCore.App.Runtime.linux-x86.*.nupkg' \
+            -printf '%f\n' 2>/dev/null \
+            | sed -E 's/^Microsoft\.NETCore\.App\.Runtime\.linux-x86\.//' \
+            | sed -E 's/\.nupkg$//' \
+            | sort -V \
+            | tail -n1 || true)"
 
           if [[ -z "$HOST_PACK_VERSION" || "$HOST_PACK_VERSION" == *PackageVersion* ]]; then
             HOST_PACK_VERSION="${RUNTIME_REF#v}"
             HOST_PACK_VERSION="${HOST_PACK_VERSION%%-*}"
+          fi
+
+          if [[ -z "$HOST_PACK_VERSION" || "$HOST_PACK_VERSION" == *PackageVersion* ]]; then
+            HOST_PACK_VERSION="$(grep -oPm1 '(?<=<MicrosoftNETCoreAppRuntimePackageVersion>)[^<]+' "$SDK_BUNDLED_PROPS" || true)"
           fi
 
           if [[ -z "$HOST_PACK_VERSION" || "$HOST_PACK_VERSION" == *PackageVersion* ]]; then
@@ -382,7 +355,6 @@ jobs:
           TAG="$(git -C aspire tag --points-at HEAD | head -n1 || true)"
           calculate_build_id "$TAG"
           echo "OFFICIALBUILDID=$OFFICIALBUILDID"
-
           aspire/build.sh \
             --restore \
             --build \
@@ -453,7 +425,6 @@ jobs:
           TAG="$(git -C sdk tag --points-at HEAD | head -n1 || true)"
           calculate_build_id "$TAG"
           echo "OFFICIALBUILDID=$OFFICIALBUILDID"
-
           sdk/build.sh \
             -c Release \
             -pack \
@@ -521,15 +492,11 @@ jobs:
           set -euo pipefail
           git -C aspnetcore checkout "$ASPNETCORE_REF"
           git -C aspnetcore submodule update --init --recursive
-
           sed -i '/\/dnceng\/internal\//d' aspnetcore/NuGet.config || true
-
           dotnet nuget add source "$GITHUB_WORKSPACE/runtime/artifacts/packages/Release/Shipping" \
             --name local-runtime \
             --configfile aspnetcore/NuGet.config || true
-
           sed -i 's/linux-x64;/linux-x64;linux-x86;/' aspnetcore/Directory.Build.props || true
-
           if grep -q 'Microsoft.NETCore.App.Runtime.linux-x64' aspnetcore/eng/Dependencies.props; then
             sed -i '/<LatestPackageReference Include="Microsoft.NETCore.App.Runtime.linux-x64" \/>/a \ \ \ \ <LatestPackageReference Include="Microsoft.NETCore.App.Runtime.linux-x86" \/>' aspnetcore/eng/Dependencies.props
           fi
@@ -539,16 +506,12 @@ jobs:
         run: |
           set -euo pipefail
           source ./common.sh
-
           TAG="$(git -C aspnetcore tag --points-at HEAD | head -n1 || true)"
           calculate_build_id "$TAG"
           echo "OFFICIALBUILDID=$OFFICIALBUILDID"
-
           mkdir -p aspnetcore/artifacts/obj/Microsoft.AspNetCore.App.Runtime
-
           cp runtime/artifacts/packages/Release/Shipping/dotnet-runtime-*-linux-x86.tar.gz \
             aspnetcore/artifacts/obj/Microsoft.AspNetCore.App.Runtime/
-
           aspnetcore/eng/build.sh \
             -c Release \
             -ci \
@@ -644,24 +607,18 @@ jobs:
         run: |
           set -euo pipefail
           git -C installer checkout "$INSTALLER_REF"
-
           dotnet nuget remove source msbuild --configfile installer/NuGet.config || true
           dotnet nuget remove source nuget-build --configfile installer/NuGet.config || true
-
           dotnet nuget add source "$GITHUB_WORKSPACE/runtime/artifacts/packages/Release/Shipping" \
             --name runtime \
             --configfile installer/NuGet.config || true
-
           dotnet nuget add source "$GITHUB_WORKSPACE/aspnetcore/artifacts/packages/Release/Shipping" \
             --name aspnetcore \
             --configfile installer/NuGet.config || true
-
           dotnet nuget add source "$GITHUB_WORKSPACE/aspire/artifacts/packages/Release/Shipping" \
             --name aspire \
             --configfile installer/NuGet.config || true
-
           sed -i '/\/dnceng\/internal\//d' installer/NuGet.config || true
-
           sed -i 's/linux-s390x/linux-s390x;linux-x86/g' \
             installer/src/redist/targets/GenerateBundledVersions.targets || true
 
@@ -670,19 +627,14 @@ jobs:
         run: |
           set -euo pipefail
           source ./common.sh
-
           TAG="$(git -C installer tag --points-at HEAD | head -n1 || true)"
           calculate_build_id "$TAG"
           echo "OFFICIALBUILDID=$OFFICIALBUILDID"
-
           mkdir -p installer/artifacts/obj/redist/Release/downloads/
-
           cp runtime/artifacts/packages/Release/Shipping/dotnet-runtime-*-linux-x86.tar.gz \
             installer/artifacts/obj/redist/Release/downloads/
-
           cp aspnetcore/artifacts/installers/Release/aspnetcore-runtime-* \
             installer/artifacts/obj/redist/Release/downloads/ || true
-
           installer/build.sh \
             -c Release \
             -ci \
