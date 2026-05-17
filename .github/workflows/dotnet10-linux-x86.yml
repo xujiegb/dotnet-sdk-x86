@@ -207,6 +207,8 @@ jobs:
 
           echo "Patching SDK bundled props: $SDK_BUNDLED_PROPS"
 
+          sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/runtime/.dotnet" || true
+
           if [[ -z "$SDK_BUNDLED_PROPS" || ! -f "$SDK_BUNDLED_PROPS" ]]; then
             echo "Cannot find Microsoft.NETCoreSdk.BundledVersions.props"
             find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" -type f -name 'Microsoft.NETCoreSdk.BundledVersions.props' -print || true
