@@ -112,6 +112,7 @@ jobs:
                 llvm \
                 make \
                 ninja-build \
+                pkg-config \
                 python3 \
                 python3-pip \
                 python-is-python3 \
@@ -128,7 +129,9 @@ jobs:
                 libkrb5-dev \
                 libssl-dev \
                 libicu-dev \
-                liblttng-ust-dev && \
+                liblttng-ust-dev \
+                liburcu-dev \
+                pkg-config && \
               chroot ${ROOTFS_DIR} apt-get clean && \
               rm -rf ${ROOTFS_DIR}/var/lib/apt/lists/* && \
               ln -s i386-linux-gnu ${ROOTFS_DIR}/usr/lib/i686-linux-gnu || true && \
