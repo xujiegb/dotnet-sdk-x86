@@ -194,8 +194,6 @@ jobs:
               -os Linux \
               -arch x86 \
               /p:OfficialBuildId="$OFFICIALBUILDID" \
-              -cmakeargs "-DCMAKE_INCLUDE_PATH=/crossrootfs/x86/usr/include;/usr/include" \
-              -cmakeargs "-DCMAKE_LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu;/crossrootfs/x86/lib/i386-linux-gnu;/usr/lib/i386-linux-gnu" \
               -subset Clr.Native+Host.Native
 
           docker run --rm \
