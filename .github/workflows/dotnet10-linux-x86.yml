@@ -242,7 +242,7 @@ jobs:
               /p:PublishTrimmed=false \
               /p:UseAppHost=true \
               /p:DisableAppHost=false \
-              /p:SelfContained=true \
+              /p:SelfContained=false \
               /p:AppHostSourcePath=/runtime/artifacts/obj/linux-x86.Release/apphost/standalone/apphost
 
       - name: Upload runtime packages
