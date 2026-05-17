@@ -166,6 +166,38 @@ jobs:
               /p:OfficialBuildId="$OFFICIALBUILDID" \
               -subset Clr.Native+Host.Native
 
+          HOST_PACK_VERSION="${RUNTIME_REF#v}"
+          HOST_PACK_VERSION="${HOST_PACK_VERSION%%-*}"
+
+          HOST_PACK_DIR="$GITHUB_WORKSPACE/runtime/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86/${HOST_PACK_VERSION}/runtimes/linux-x86/native"
+          mkdir -p "$HOST_PACK_DIR"
+
+          APPHOST_SOURCE=""
+
+          for candidate in \
+            "$GITHUB_WORKSPACE/runtime/artifacts/obj/linux-x86.Release/apphost/standalone/apphost" \
+            "$GITHUB_WORKSPACE/runtime/artifacts/bin/linux-x86.Release/corehost/apphost" \
+            "$GITHUB_WORKSPACE/runtime/artifacts/bin/linux-x86.Release/corehost_test/nativehost"
+          do
+            if [[ -f "$candidate" ]]; then
+              APPHOST_SOURCE="$candidate"
+              break
+            fi
+          done
+
+          if [[ -z "$APPHOST_SOURCE" ]]; then
+            echo "Cannot find linux-x86 apphost/nativehost."
+            find "$GITHUB_WORKSPACE/runtime/artifacts" -type f \( -name apphost -o -name nativehost \) -print || true
+            exit 1
+          fi
+
+          cp "$APPHOST_SOURCE" "$HOST_PACK_DIR/apphost"
+          chmod +x "$HOST_PACK_DIR/apphost"
+
+          echo "Installed Microsoft.NETCore.App.Host.linux-x86:"
+          ls -l "$HOST_PACK_DIR"
+          file "$HOST_PACK_DIR/apphost"
+
           docker run --rm \
             -e ROOTFS_DIR=/crossrootfs/x86 \
             -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/lib/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
