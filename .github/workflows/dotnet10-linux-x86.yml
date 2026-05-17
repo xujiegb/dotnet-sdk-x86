@@ -123,6 +123,7 @@ jobs:
                 libgcc-s1:i386 \
                 libc6-dev:i386 \
                 libgcc-11-dev:i386 \
+                libstdc++-11-dev:i386 \
                 linux-libc-dev:i386 \
                 zlib1g-dev:i386 \
                 && rm -rf /var/lib/apt/lists/*
@@ -138,10 +139,11 @@ jobs:
               mkdir -p ${ROOTFS_DIR}/usr/lib/gcc && \
               cp -a /usr/lib/gcc/i686-linux-gnu ${ROOTFS_DIR}/usr/lib/gcc/ || true && \
               cp -a /usr/lib/gcc/x86_64-linux-gnu ${ROOTFS_DIR}/usr/lib/gcc/ || true && \
+              find /usr/lib/i386-linux-gnu -name 'libstdc++.so*' -exec cp -a {} ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/ \; || true && \
               ln -s i386-linux-gnu ${ROOTFS_DIR}/usr/lib/i686-linux-gnu || true && \
               ln -s i386-linux-gnu ${ROOTFS_DIR}/lib/i686-linux-gnu || true && \
               ln -s i686-linux-gnu ${ROOTFS_DIR}/usr/lib/gcc/i386-linux-gnu || true && \
-              find ${ROOTFS_DIR} \( -name 'ld-linux.so.2' -o -name 'Scrt1.o' -o -name 'crti.o' -o -name 'crtbeginS.o' -o -name 'libc.so' -o -name 'libgcc.a' \) -print
+              find ${ROOTFS_DIR} \( -name 'ld-linux.so.2' -o -name 'Scrt1.o' -o -name 'crti.o' -o -name 'crtbeginS.o' -o -name 'libc.so' -o -name 'libgcc.a' -o -name 'libstdc++.so*' \) -print
 
           WORKDIR /
           EOF
