@@ -109,14 +109,7 @@ jobs:
               rm -rf ${ROOTFS_DIR}/var/lib/apt/lists/* && \
               ln -s i386-linux-gnu ${ROOTFS_DIR}/usr/lib/i686-linux-gnu || true && \
               ln -s i386-linux-gnu ${ROOTFS_DIR}/lib/i686-linux-gnu || true && \
-              mkdir -p /usr/lib/i386-linux-gnu/pkgconfig /usr/include /usr/lib/i386-linux-gnu && \
-              cp -a ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/pkgconfig/lttng-ust*.pc /usr/lib/i386-linux-gnu/pkgconfig/ || true && \
-              cp -a ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/pkgconfig/urcu*.pc /usr/lib/i386-linux-gnu/pkgconfig/ || true && \
-              ln -s /usr/lib/i386-linux-gnu/pkgconfig /usr/lib/pkgconfig || true && \
-              cp -a ${ROOTFS_DIR}/usr/include/lttng /usr/include/ || true && \
-              cp -a ${ROOTFS_DIR}/usr/include/urcu* /usr/include/ || true && \
-              cp -a ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/liblttng-ust* /usr/lib/i386-linux-gnu/ || true && \
-              cp -a ${ROOTFS_DIR}/usr/lib/i386-linux-gnu/liburcu* /usr/lib/i386-linux-gnu/ || true
+              find ${ROOTFS_DIR} \( -name 'lttng-ust.pc' -o -name 'liblttng-ust.so*' -o -name 'ust.h' \) -print
 
           WORKDIR /
           EOF
@@ -156,7 +149,7 @@ jobs:
             -e CFLAGS=--sysroot=/crossrootfs/x86 \
             -e CXXFLAGS=--sysroot=/crossrootfs/x86 \
             -e LDFLAGS=--sysroot=/crossrootfs/x86 \
-            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig:/usr/lib/pkgconfig \
+            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
             -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
             dotnet-linux-x86 \
@@ -167,6 +160,11 @@ jobs:
               -os Linux \
               -arch x86 \
               /p:OfficialBuildId="$OFFICIALBUILDID" \
+              -cmakeargs "-DCMAKE_SYSROOT=/crossrootfs/x86" \
+              -cmakeargs "-DCMAKE_FIND_ROOT_PATH=/crossrootfs/x86" \
+              -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY" \
+              -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY" \
+              -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY" \
               -subset Clr.Native+Host.Native
 
           docker run --rm \
@@ -175,7 +173,7 @@ jobs:
             -e CFLAGS=--sysroot=/crossrootfs/x86 \
             -e CXXFLAGS=--sysroot=/crossrootfs/x86 \
             -e LDFLAGS=--sysroot=/crossrootfs/x86 \
-            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig:/usr/lib/pkgconfig \
+            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
             -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
             dotnet-linux-x86 \
@@ -186,6 +184,11 @@ jobs:
               -os Linux \
               -arch x86 \
               /p:OfficialBuildId="$OFFICIALBUILDID" \
+              -cmakeargs "-DCMAKE_SYSROOT=/crossrootfs/x86" \
+              -cmakeargs "-DCMAKE_FIND_ROOT_PATH=/crossrootfs/x86" \
+              -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY" \
+              -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY" \
+              -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY" \
               /p:AppHostSourcePath=/runtime/artifacts/obj/linux-x86.Release/apphost/standalone/apphost
 
       - name: Upload runtime packages
