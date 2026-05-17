@@ -104,9 +104,12 @@ jobs:
                 git \
                 jq \
                 libicu-dev \
+                libicu-dev:i386 \
                 libkrb5-dev \
+                libkrb5-dev:i386 \
                 liblttng-ust-dev \
                 libssl-dev \
+                libssl-dev:i386 \
                 lldb \
                 llvm \
                 make \
