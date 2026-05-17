@@ -149,7 +149,7 @@ jobs:
             -e CFLAGS=--sysroot=/crossrootfs/x86 \
             -e CXXFLAGS=--sysroot=/crossrootfs/x86 \
             -e LDFLAGS=--sysroot=/crossrootfs/x86 \
-            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
+            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/lib/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
             -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
             dotnet-linux-x86 \
@@ -164,7 +164,6 @@ jobs:
               -cmakeargs "-DCMAKE_FIND_ROOT_PATH=/crossrootfs/x86" \
               -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY" \
               -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY" \
-              -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY" \
               -subset Clr.Native+Host.Native
 
           docker run --rm \
@@ -173,7 +172,7 @@ jobs:
             -e CFLAGS=--sysroot=/crossrootfs/x86 \
             -e CXXFLAGS=--sysroot=/crossrootfs/x86 \
             -e LDFLAGS=--sysroot=/crossrootfs/x86 \
-            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
+            -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/lib/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
             -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
             dotnet-linux-x86 \
@@ -188,7 +187,6 @@ jobs:
               -cmakeargs "-DCMAKE_FIND_ROOT_PATH=/crossrootfs/x86" \
               -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY" \
               -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY" \
-              -cmakeargs "-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY" \
               /p:AppHostSourcePath=/runtime/artifacts/obj/linux-x86.Release/apphost/standalone/apphost
 
       - name: Upload runtime packages
