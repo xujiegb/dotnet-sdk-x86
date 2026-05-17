@@ -181,6 +181,11 @@ jobs:
               -os Linux \
               -arch x86 \
               /p:OfficialBuildId="$OFFICIALBUILDID" \
+              /p:PublishAot=false \
+              /p:PublishReadyToRun=false \
+              /p:UseAppHost=false \
+              /p:DisableAppHost=true \
+              /p:SelfContained=false \
               /p:AppHostSourcePath=/runtime/artifacts/obj/linux-x86.Release/apphost/standalone/apphost
 
       - name: Upload runtime packages
