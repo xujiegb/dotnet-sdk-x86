@@ -181,6 +181,10 @@ jobs:
           docker run --rm \
             -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig:/usr/lib/pkgconfig \
             -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
+            -e CMAKE_INCLUDE_PATH=/crossrootfs/x86/usr/include:/usr/include \
+            -e CMAKE_LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu:/crossrootfs/x86/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu \
+            -e CPATH=/crossrootfs/x86/usr/include:/usr/include \
+            -e LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu:/crossrootfs/x86/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
             dotnet-linux-x86 \
             /runtime/eng/build.sh \
@@ -190,11 +194,17 @@ jobs:
               -os Linux \
               -arch x86 \
               /p:OfficialBuildId="$OFFICIALBUILDID" \
+              -cmakeargs "-DCMAKE_INCLUDE_PATH=/crossrootfs/x86/usr/include;/usr/include" \
+              -cmakeargs "-DCMAKE_LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu;/crossrootfs/x86/lib/i386-linux-gnu;/usr/lib/i386-linux-gnu" \
               -subset Clr.Native+Host.Native
 
           docker run --rm \
             -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig:/usr/lib/pkgconfig \
             -e PKG_CONFIG_SYSROOT_DIR=/crossrootfs/x86 \
+            -e CMAKE_INCLUDE_PATH=/crossrootfs/x86/usr/include:/usr/include \
+            -e CMAKE_LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu:/crossrootfs/x86/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu \
+            -e CPATH=/crossrootfs/x86/usr/include:/usr/include \
+            -e LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu:/crossrootfs/x86/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu \
             -v "$GITHUB_WORKSPACE/runtime:/runtime" \
             dotnet-linux-x86 \
             /runtime/eng/build.sh \
@@ -204,6 +214,8 @@ jobs:
               -os Linux \
               -arch x86 \
               /p:OfficialBuildId="$OFFICIALBUILDID" \
+              -cmakeargs "-DCMAKE_INCLUDE_PATH=/crossrootfs/x86/usr/include;/usr/include" \
+              -cmakeargs "-DCMAKE_LIBRARY_PATH=/crossrootfs/x86/usr/lib/i386-linux-gnu;/crossrootfs/x86/lib/i386-linux-gnu;/usr/lib/i386-linux-gnu" \
               /p:AppHostSourcePath=/runtime/artifacts/obj/linux-x86.Release/apphost/standalone/apphost
 
       - name: Upload runtime packages
