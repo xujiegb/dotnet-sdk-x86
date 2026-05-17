@@ -174,31 +174,6 @@ jobs:
             exit 1
           fi
 
-          HOST_PACK_VERSION="$(grep -oPm1 'AppHostPackVersion="\K[^"]+' "$SDK_BUNDLED_PROPS" || true)"
-
-          if [[ -z "$HOST_PACK_VERSION" ]]; then
-            HOST_PACK_VERSION="$(grep -oPm1 'RuntimePackVersion="\K[^"]+' "$SDK_BUNDLED_PROPS" || true)"
-          fi
-
-          if [[ -z "$HOST_PACK_VERSION" ]]; then
-            HOST_PACK_VERSION="$(grep -oPm1 'TargetingPackVersion="\K[^"]+' "$SDK_BUNDLED_PROPS" || true)"
-          fi
-
-          if [[ -z "$HOST_PACK_VERSION" ]]; then
-            echo "Cannot detect HOST_PACK_VERSION from $SDK_BUNDLED_PROPS"
-            echo "Relevant lines:"
-            grep -nE 'KnownAppHostPack|AppHostPackVersion|RuntimePackVersion|TargetingPackVersion|Microsoft\.NETCore\.App' "$SDK_BUNDLED_PROPS" || true
-            exit 1
-          fi
-
-          echo "HOST_PACK_VERSION=$HOST_PACK_VERSION"
-
-          HOST_PACK_ROOT="$GITHUB_WORKSPACE/runtime/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86"
-          HOST_PACK_DIR="$HOST_PACK_ROOT/${HOST_PACK_VERSION}/runtimes/linux-x86/native"
-
-          sudo mkdir -p "$HOST_PACK_DIR"
-          sudo chown -R "$USER:$USER" "$HOST_PACK_ROOT"
-
           APPHOST_SOURCE=""
 
           for candidate in \
@@ -218,26 +193,52 @@ jobs:
             exit 1
           fi
 
-          cp "$APPHOST_SOURCE" "$HOST_PACK_DIR/apphost"
-          chmod +x "$HOST_PACK_DIR/apphost"
+          echo "APPHOST_SOURCE=$APPHOST_SOURCE"
+          file "$APPHOST_SOURCE"
 
-          echo "Installed Microsoft.NETCore.App.Host.linux-x86:"
-          ls -l "$HOST_PACK_DIR"
-          file "$HOST_PACK_DIR/apphost"
+          TARGET_RUNTIME_VERSION="${RUNTIME_REF#v}"
+          TARGET_RUNTIME_VERSION="${TARGET_RUNTIME_VERSION%%-*}"
+
+          HOST_PACK_VERSIONS=()
+          HOST_PACK_VERSIONS+=("$BOOTSTRAP_SDK_VERSION")
+          HOST_PACK_VERSIONS+=("$TARGET_RUNTIME_VERSION")
+          HOST_PACK_VERSIONS+=("6.0.36")
+
+          mapfile -t HOST_PACK_VERSIONS < <(printf '%s\n' "${HOST_PACK_VERSIONS[@]}" | awk 'NF && !seen[$0]++')
+
+          echo "HOST_PACK_VERSIONS:"
+          printf '  %s\n' "${HOST_PACK_VERSIONS[@]}"
 
           LOCAL_PACKAGES="$GITHUB_WORKSPACE/runtime/artifacts/local-packages"
 
           sudo mkdir -p "$LOCAL_PACKAGES"
           sudo chown -R "$(id -u):$(id -g)" "$LOCAL_PACKAGES"
 
-          PKG_WORK="$LOCAL_PACKAGES/pkg-host-linux-x86"
-          rm -rf "$PKG_WORK"
-          mkdir -p "$PKG_WORK/runtimes/linux-x86/native" "$LOCAL_PACKAGES"
+          HOST_PACK_ROOT="$GITHUB_WORKSPACE/runtime/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86"
+          sudo mkdir -p "$HOST_PACK_ROOT"
+          sudo chown -R "$USER:$USER" "$HOST_PACK_ROOT"
 
-          cp "$HOST_PACK_DIR/apphost" "$PKG_WORK/runtimes/linux-x86/native/apphost"
-          chmod +x "$PKG_WORK/runtimes/linux-x86/native/apphost"
+          for HOST_PACK_VERSION in "${HOST_PACK_VERSIONS[@]}"; do
+            echo "Creating Microsoft.NETCore.App.Host.linux-x86 $HOST_PACK_VERSION"
 
-          cat > "$PKG_WORK/Microsoft.NETCore.App.Host.linux-x86.nuspec" <<EOF
+            HOST_PACK_DIR="$HOST_PACK_ROOT/${HOST_PACK_VERSION}/runtimes/linux-x86/native"
+
+            mkdir -p "$HOST_PACK_DIR"
+            cp "$APPHOST_SOURCE" "$HOST_PACK_DIR/apphost"
+            chmod +x "$HOST_PACK_DIR/apphost"
+
+            echo "Installed Microsoft.NETCore.App.Host.linux-x86 $HOST_PACK_VERSION:"
+            ls -l "$HOST_PACK_DIR"
+            file "$HOST_PACK_DIR/apphost"
+
+            PKG_WORK="$LOCAL_PACKAGES/pkg-host-linux-x86-$HOST_PACK_VERSION"
+            rm -rf "$PKG_WORK"
+            mkdir -p "$PKG_WORK/runtimes/linux-x86/native"
+
+            cp "$APPHOST_SOURCE" "$PKG_WORK/runtimes/linux-x86/native/apphost"
+            chmod +x "$PKG_WORK/runtimes/linux-x86/native/apphost"
+
+            cat > "$PKG_WORK/Microsoft.NETCore.App.Host.linux-x86.nuspec" <<EOF
           <?xml version="1.0" encoding="utf-8"?>
           <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
             <metadata>
@@ -252,12 +253,13 @@ jobs:
           </package>
           EOF
 
-          (
-            cd "$PKG_WORK"
-            zip -qr "$LOCAL_PACKAGES/Microsoft.NETCore.App.Host.linux-x86.${HOST_PACK_VERSION}.nupkg" .
-          )
+            (
+              cd "$PKG_WORK"
+              zip -qr "$LOCAL_PACKAGES/Microsoft.NETCore.App.Host.linux-x86.${HOST_PACK_VERSION}.nupkg" .
+            )
+          done
 
-          echo "Created local host pack:"
+          echo "Created local host packs:"
           ls -l "$LOCAL_PACKAGES"
 
           dotnet nuget remove source local-linux-x86-host \
