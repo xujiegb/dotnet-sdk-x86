@@ -166,8 +166,28 @@ jobs:
               /p:OfficialBuildId="$OFFICIALBUILDID" \
               -subset Clr.Native+Host.Native
 
-          HOST_PACK_VERSION="${RUNTIME_REF#v}"
-          HOST_PACK_VERSION="${HOST_PACK_VERSION%%-*}"
+          sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/runtime/artifacts" || true
+          sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/runtime/.dotnet" || true
+
+          SDK_BUNDLED_PROPS="$(find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" \
+            -name 'Microsoft.NETCoreSdk.BundledVersions.props' \
+            | head -n1)"
+
+          echo "Patching SDK bundled props: $SDK_BUNDLED_PROPS"
+
+          if [[ -z "$SDK_BUNDLED_PROPS" || ! -f "$SDK_BUNDLED_PROPS" ]]; then
+            echo "Cannot find Microsoft.NETCoreSdk.BundledVersions.props"
+            find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" -type f -name 'Microsoft.NETCoreSdk.BundledVersions.props' -print || true
+            exit 1
+          fi
+
+          HOST_PACK_VERSION="$(grep -oPm1 '(?<=<NETCoreSdkRuntimePackVersion>)[^<]+' "$SDK_BUNDLED_PROPS" || true)"
+          if [[ -z "$HOST_PACK_VERSION" ]]; then
+            HOST_PACK_VERSION="${RUNTIME_REF#v}"
+            HOST_PACK_VERSION="${HOST_PACK_VERSION%%-*}"
+          fi
+
+          echo "HOST_PACK_VERSION=$HOST_PACK_VERSION"
 
           HOST_PACK_ROOT="$GITHUB_WORKSPACE/runtime/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86"
           HOST_PACK_DIR="$HOST_PACK_ROOT/${HOST_PACK_VERSION}/runtimes/linux-x86/native"
@@ -205,7 +225,7 @@ jobs:
 
           sudo mkdir -p "$LOCAL_PACKAGES"
           sudo chown -R "$(id -u):$(id -g)" "$LOCAL_PACKAGES"
-          
+
           PKG_WORK="$LOCAL_PACKAGES/pkg-host-linux-x86"
           rm -rf "$PKG_WORK"
           mkdir -p "$PKG_WORK/runtimes/linux-x86/native" "$LOCAL_PACKAGES"
@@ -236,23 +256,12 @@ jobs:
           echo "Created local host pack:"
           ls -l "$LOCAL_PACKAGES"
 
-          dotnet nuget add source "$LOCAL_PACKAGES" \
-            --name local-linux-x86-host \
+          dotnet nuget remove source local-linux-x86-host \
             --configfile "$GITHUB_WORKSPACE/runtime/NuGet.config" || true
 
-          SDK_BUNDLED_PROPS="$(find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" \
-            -name 'Microsoft.NETCoreSdk.BundledVersions.props' \
-            | head -n1)"
-
-          echo "Patching SDK bundled props: $SDK_BUNDLED_PROPS"
-
-          sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/runtime/.dotnet" || true
-
-          if [[ -z "$SDK_BUNDLED_PROPS" || ! -f "$SDK_BUNDLED_PROPS" ]]; then
-            echo "Cannot find Microsoft.NETCoreSdk.BundledVersions.props"
-            find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" -type f -name 'Microsoft.NETCoreSdk.BundledVersions.props' -print || true
-            exit 1
-          fi
+          dotnet nuget add source "/runtime/artifacts/local-packages" \
+            --name local-linux-x86-host \
+            --configfile "$GITHUB_WORKSPACE/runtime/NuGet.config" || true
 
           sed -i 's/linux-x64;/linux-x64;linux-x86;/g' "$SDK_BUNDLED_PROPS"
           sed -i 's/linux-musl-x64;/linux-musl-x64;linux-x86;/g' "$SDK_BUNDLED_PROPS"
