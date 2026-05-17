@@ -202,7 +202,7 @@ jobs:
           file "$HOST_PACK_DIR/apphost"
 
           SDK_BUNDLED_PROPS="$(find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" \
-            -path '*/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NETCoreSdk.BundledVersions.props' \
+            -name 'Microsoft.NETCoreSdk.BundledVersions.props' \
             | head -n1)"
 
           echo "Patching SDK bundled props: $SDK_BUNDLED_PROPS"
