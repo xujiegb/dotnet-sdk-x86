@@ -167,7 +167,6 @@ jobs:
               -subset Clr.Native+Host.Native
 
           sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/runtime/artifacts" || true
-          sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/runtime/.dotnet" || true
 
           SDK_BUNDLED_PROPS="$(find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" \
             -name 'Microsoft.NETCoreSdk.BundledVersions.props' \
@@ -188,7 +187,7 @@ jobs:
               grep -RhoP '(?<=<BundledNETCoreAppPackageVersion>)[^<]+' "$GITHUB_WORKSPACE/runtime" || true
               grep -RhoP 'Microsoft\.NETCore\.App\.Host\.linux-x86[^0-9]*\K[0-9]+\.[0-9]+\.[0-9][^"< ]*' "$GITHUB_WORKSPACE/runtime" || true
               echo "${RUNTIME_REF#v}"
-            } | sed 's/-.*//' | sort -u
+            } | sed 's/-.*//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -u
           )"
 
           echo "HOST_PACK_VERSIONS:"
@@ -198,14 +197,6 @@ jobs:
             echo "No host pack versions detected."
             exit 1
           fi
-
-          echo "HOST_PACK_VERSION=$HOST_PACK_VERSION"
-
-          HOST_PACK_ROOT="$GITHUB_WORKSPACE/runtime/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86"
-          HOST_PACK_DIR="$HOST_PACK_ROOT/${HOST_PACK_VERSION}/runtimes/linux-x86/native"
-
-          sudo mkdir -p "$HOST_PACK_DIR"
-          sudo chown -R "$USER:$USER" "$HOST_PACK_ROOT"
 
           APPHOST_SOURCE=""
 
@@ -226,26 +217,33 @@ jobs:
             exit 1
           fi
 
-          cp "$APPHOST_SOURCE" "$HOST_PACK_DIR/apphost"
-          chmod +x "$HOST_PACK_DIR/apphost"
-
-          echo "Installed Microsoft.NETCore.App.Host.linux-x86:"
-          ls -l "$HOST_PACK_DIR"
-          file "$HOST_PACK_DIR/apphost"
-
           LOCAL_PACKAGES="$GITHUB_WORKSPACE/runtime/artifacts/local-packages"
 
           sudo mkdir -p "$LOCAL_PACKAGES"
           sudo chown -R "$(id -u):$(id -g)" "$LOCAL_PACKAGES"
 
-          PKG_WORK="$LOCAL_PACKAGES/pkg-host-linux-x86"
-          rm -rf "$PKG_WORK"
-          mkdir -p "$PKG_WORK/runtimes/linux-x86/native" "$LOCAL_PACKAGES"
+          for HOST_PACK_VERSION in $HOST_PACK_VERSIONS; do
+            echo "Creating Microsoft.NETCore.App.Host.linux-x86 $HOST_PACK_VERSION"
 
-          cp "$HOST_PACK_DIR/apphost" "$PKG_WORK/runtimes/linux-x86/native/apphost"
-          chmod +x "$PKG_WORK/runtimes/linux-x86/native/apphost"
+            HOST_PACK_ROOT="$GITHUB_WORKSPACE/runtime/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86"
+            HOST_PACK_DIR="$HOST_PACK_ROOT/${HOST_PACK_VERSION}/runtimes/linux-x86/native"
 
-          cat > "$PKG_WORK/Microsoft.NETCore.App.Host.linux-x86.nuspec" <<EOF
+            sudo mkdir -p "$HOST_PACK_DIR"
+            sudo cp "$APPHOST_SOURCE" "$HOST_PACK_DIR/apphost"
+            sudo chmod +x "$HOST_PACK_DIR/apphost"
+
+            echo "Installed Microsoft.NETCore.App.Host.linux-x86:"
+            ls -l "$HOST_PACK_DIR"
+            file "$HOST_PACK_DIR/apphost"
+
+            PKG_WORK="$LOCAL_PACKAGES/pkg-host-linux-x86-${HOST_PACK_VERSION}"
+            rm -rf "$PKG_WORK"
+            mkdir -p "$PKG_WORK/runtimes/linux-x86/native"
+
+            cp "$APPHOST_SOURCE" "$PKG_WORK/runtimes/linux-x86/native/apphost"
+            chmod +x "$PKG_WORK/runtimes/linux-x86/native/apphost"
+
+            cat > "$PKG_WORK/Microsoft.NETCore.App.Host.linux-x86.nuspec" <<EOF
           <?xml version="1.0" encoding="utf-8"?>
           <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
             <metadata>
@@ -260,12 +258,13 @@ jobs:
           </package>
           EOF
 
-          (
-            cd "$PKG_WORK"
-            zip -qr "$LOCAL_PACKAGES/Microsoft.NETCore.App.Host.linux-x86.${HOST_PACK_VERSION}.nupkg" .
-          )
+            (
+              cd "$PKG_WORK"
+              zip -qr "$LOCAL_PACKAGES/Microsoft.NETCore.App.Host.linux-x86.${HOST_PACK_VERSION}.nupkg" .
+            )
+          done
 
-          echo "Created local host pack:"
+          echo "Created local host packs:"
           ls -l "$LOCAL_PACKAGES"
 
           dotnet nuget remove source local-linux-x86-host \
@@ -275,8 +274,7 @@ jobs:
             --name local-linux-x86-host \
             --configfile "$GITHUB_WORKSPACE/runtime/NuGet.config" || true
 
-          sed -i 's/linux-x64;/linux-x64;linux-x86;/g' "$SDK_BUNDLED_PROPS"
-          sed -i 's/linux-musl-x64;/linux-musl-x64;linux-x86;/g' "$SDK_BUNDLED_PROPS"
+          sudo perl -0pi -e 's/linux-x64;/linux-x64;linux-x86;/g; s/linux-musl-x64;/linux-musl-x64;linux-x86;/g' "$SDK_BUNDLED_PROPS"
 
           grep -n "linux-x86" "$SDK_BUNDLED_PROPS" || {
             echo "Failed to inject linux-x86 into SDK KnownAppHostPack list"
