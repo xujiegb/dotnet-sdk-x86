@@ -168,6 +168,11 @@ jobs:
           HOST_PACK_VERSION="${RUNTIME_REF#v}"
           HOST_PACK_VERSION="${HOST_PACK_VERSION%%-*}"
 
+          if [[ -z "$HOST_PACK_VERSION" || "$HOST_PACK_VERSION" == *PackageVersion* ]]; then
+            echo "Cannot detect HOST_PACK_VERSION from RUNTIME_REF=$RUNTIME_REF"
+            exit 1
+          fi
+
           echo "HOST_PACK_VERSION=$HOST_PACK_VERSION"
 
           HOST_PACK_ROOT="$GITHUB_WORKSPACE/runtime/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86"
