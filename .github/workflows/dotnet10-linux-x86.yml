@@ -132,6 +132,9 @@ jobs:
           sed -i '/<PublishSingleFile>/d' runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler.csproj || true
           sed -i '/<PublishSingleFile>/d' runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler_inbuild.csproj || true
 
+          sed -i '/<PublishTrimmed>/d' runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler.csproj || true
+          sed -i '/<PublishTrimmed>/d' runtime/src/coreclr/tools/aot/ILCompiler/ILCompiler_inbuild.csproj || true
+
           if grep -q 'PublishReadyToRun Condition' runtime/src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Runtime.props; then
             sed -i '/PublishReadyToRun Condition/a \ \ \ \ <PublishReadyToRun>false<\/PublishReadyToRun>' runtime/src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Runtime.props
           fi
@@ -179,6 +182,7 @@ jobs:
               /p:PublishAot=false \
               /p:PublishReadyToRun=false \
               /p:PublishSingleFile=false \
+              /p:PublishTrimmed=false \
               /p:UseAppHost=false \
               /p:DisableAppHost=true \
               /p:SelfContained=false \
