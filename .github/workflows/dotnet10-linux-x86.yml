@@ -80,7 +80,7 @@ jobs:
           EOF
           chmod +x common.sh
 
-      - name: Create linux-x86 crossroot Dockerfile
+            - name: Create linux-x86 crossroot Dockerfile
         shell: bash
         run: |
           mkdir -p dotnet-linux-x86
