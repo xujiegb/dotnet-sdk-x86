@@ -97,7 +97,7 @@ jobs:
                 bash ca-certificates clang cmake curl file \
                 g++ gcc gcc-i686-linux-gnu g++-i686-linux-gnu \
                 git jq libicu-dev libkrb5-dev liblttng-ust-dev libssl-dev \
-                lldb llvm make ninja-build pkg-config \
+                lldb llvm make ninja-build pkg-config zip \
                 python3 python3-pip python-is-python3 zlib1g-dev \
                 libc6-dev:i386 libstdc++-12-dev:i386 linux-libc-dev:i386 zlib1g-dev:i386 \
                 libkrb5-dev:i386 libssl-dev:i386 libicu-dev:i386 liblttng-ust-dev:i386 liburcu-dev:i386 \
@@ -200,6 +200,41 @@ jobs:
           echo "Installed Microsoft.NETCore.App.Host.linux-x86:"
           ls -l "$HOST_PACK_DIR"
           file "$HOST_PACK_DIR/apphost"
+
+          LOCAL_PACKAGES="$GITHUB_WORKSPACE/runtime/artifacts/local-packages"
+          PKG_WORK="$LOCAL_PACKAGES/pkg-host-linux-x86"
+          rm -rf "$PKG_WORK"
+          mkdir -p "$PKG_WORK/runtimes/linux-x86/native" "$LOCAL_PACKAGES"
+
+          cp "$HOST_PACK_DIR/apphost" "$PKG_WORK/runtimes/linux-x86/native/apphost"
+          chmod +x "$PKG_WORK/runtimes/linux-x86/native/apphost"
+
+          cat > "$PKG_WORK/Microsoft.NETCore.App.Host.linux-x86.nuspec" <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+            <metadata>
+              <id>Microsoft.NETCore.App.Host.linux-x86</id>
+              <version>${HOST_PACK_VERSION}</version>
+              <authors>Microsoft</authors>
+              <description>Microsoft.NETCore.App.Host.linux-x86</description>
+              <packageTypes>
+                <packageType name="DotnetPlatform" />
+              </packageTypes>
+            </metadata>
+          </package>
+          EOF
+
+          (
+            cd "$PKG_WORK"
+            zip -qr "$LOCAL_PACKAGES/Microsoft.NETCore.App.Host.linux-x86.${HOST_PACK_VERSION}.nupkg" .
+          )
+
+          echo "Created local host pack:"
+          ls -l "$LOCAL_PACKAGES"
+
+          dotnet nuget add source "$LOCAL_PACKAGES" \
+            --name local-linux-x86-host \
+            --configfile "$GITHUB_WORKSPACE/runtime/NuGet.config" || true
 
           SDK_BUNDLED_PROPS="$(find "$GITHUB_WORKSPACE/runtime/.dotnet/sdk" \
             -name 'Microsoft.NETCoreSdk.BundledVersions.props' \
