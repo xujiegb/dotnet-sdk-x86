@@ -202,6 +202,8 @@ jobs:
           HOST_PACK_VERSIONS=()
           HOST_PACK_VERSIONS+=("$BOOTSTRAP_SDK_VERSION")
           HOST_PACK_VERSIONS+=("$TARGET_RUNTIME_VERSION")
+          HOST_PACK_VERSIONS+=("10.0.5")
+          HOST_PACK_VERSIONS+=("10.0.8")
           HOST_PACK_VERSIONS+=("6.0.36")
 
           mapfile -t HOST_PACK_VERSIONS < <(printf '%s\n' "${HOST_PACK_VERSIONS[@]}" | awk 'NF && !seen[$0]++')
