@@ -153,6 +153,10 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/runtime/artifacts" || true
           sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE/runtime/.dotnet" || true
 
+          LOCAL_PACKAGES="$GITHUB_WORKSPACE/runtime/artifacts/local-packages"
+          sudo mkdir -p "$LOCAL_PACKAGES"
+          sudo chown -R "$(id -u):$(id -g)" "$LOCAL_PACKAGES"
+
           BOOTSTRAP_DOTNET="$GITHUB_WORKSPACE/runtime/.dotnet/dotnet"
 
           if [[ ! -x "$BOOTSTRAP_DOTNET" ]]; then
@@ -210,11 +214,6 @@ jobs:
 
           echo "HOST_PACK_VERSIONS:"
           printf '  %s\n' "${HOST_PACK_VERSIONS[@]}"
-
-          LOCAL_PACKAGES="$GITHUB_WORKSPACE/runtime/artifacts/local-packages"
-
-          sudo mkdir -p "$LOCAL_PACKAGES"
-          sudo chown -R "$(id -u):$(id -g)" "$LOCAL_PACKAGES"
 
           HOST_PACK_ROOT="$GITHUB_WORKSPACE/runtime/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86"
           sudo mkdir -p "$HOST_PACK_ROOT"
@@ -301,7 +300,7 @@ jobs:
             /p:UseAppHost=true \
             /p:DisableAppHost=false \
             /p:AppHostSourcePath="$APPHOST_SOURCE" \
-            -o "$CDAC_PUBLISH_DIR" || true
+            -o "$CDAC_PUBLISH_DIR"
 
           if [[ ! -f "$CDAC_PUBLISH_DIR/libmscordaccore_universal.so" ]]; then
             FOUND_CDAC_SO="$(find "$GITHUB_WORKSPACE/runtime/artifacts" -type f -name 'libmscordaccore_universal.so' | head -n1 || true)"
