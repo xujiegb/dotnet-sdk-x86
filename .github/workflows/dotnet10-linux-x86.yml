@@ -279,6 +279,51 @@ jobs:
             exit 1
           }
 
+          echo "Publishing mscordaccore_universal for linux-x86 before full runtime build..."
+
+          CDAC_PUBLISH_DIR="$GITHUB_WORKSPACE/runtime/artifacts/bin/mscordaccore_universal/Release/net10.0/linux-x86/publish"
+
+          rm -rf "$CDAC_PUBLISH_DIR"
+          mkdir -p "$CDAC_PUBLISH_DIR"
+
+          "$BOOTSTRAP_DOTNET" publish \
+            "$GITHUB_WORKSPACE/runtime/src/native/managed/cdac/mscordaccore_universal/mscordaccore_universal.csproj" \
+            -c Release \
+            -f net10.0 \
+            -r linux-x86 \
+            --self-contained true \
+            /p:RuntimeIdentifier=linux-x86 \
+            /p:TargetRid=linux-x86 \
+            /p:PublishAot=false \
+            /p:PublishReadyToRun=false \
+            /p:PublishSingleFile=false \
+            /p:PublishTrimmed=false \
+            /p:UseAppHost=true \
+            /p:DisableAppHost=false \
+            /p:AppHostSourcePath="$APPHOST_SOURCE" \
+            -o "$CDAC_PUBLISH_DIR" || true
+
+          if [[ ! -f "$CDAC_PUBLISH_DIR/libmscordaccore_universal.so" ]]; then
+            FOUND_CDAC_SO="$(find "$GITHUB_WORKSPACE/runtime/artifacts" -type f -name 'libmscordaccore_universal.so' | head -n1 || true)"
+
+            if [[ -n "$FOUND_CDAC_SO" && -f "$FOUND_CDAC_SO" ]]; then
+              echo "Found libmscordaccore_universal.so at: $FOUND_CDAC_SO"
+              cp "$FOUND_CDAC_SO" "$CDAC_PUBLISH_DIR/libmscordaccore_universal.so"
+            fi
+          fi
+
+          echo "mscordaccore_universal publish output:"
+          find "$CDAC_PUBLISH_DIR" -maxdepth 1 -type f -print || true
+
+          if [[ ! -f "$CDAC_PUBLISH_DIR/libmscordaccore_universal.so" ]]; then
+            echo "libmscordaccore_universal.so was not produced or found."
+            echo "Relevant artifacts:"
+            find "$GITHUB_WORKSPACE/runtime/artifacts" -type f \
+              \( -name 'libmscordaccore_universal.so' -o -name 'mscordaccore_universal.dll' -o -name 'mscordaccore_universal' \) \
+              -print || true
+            exit 1
+          fi
+
           docker run --rm \
             -e ROOTFS_DIR=/crossrootfs/x86 \
             -e PKG_CONFIG_LIBDIR=/crossrootfs/x86/usr/lib/i386-linux-gnu/pkgconfig:/crossrootfs/x86/usr/lib/pkgconfig:/crossrootfs/x86/usr/share/pkgconfig \
